@@ -1151,7 +1151,7 @@
                     // Scroll down to make the Download PDF button visible
                     setTimeout(() => {
                         scrollToResults();
-                    }, 500); // Small delay to allow results to render
+                    }, 300); // Reduced delay for faster response
                     
                     // Log for debug mode
                     log('Extraction completed successfully', { 
@@ -1740,53 +1740,198 @@
             elements.infoMessage.style.display = 'none';
         }
 
+        // Browser detection for better compatibility
+        function isSafari() {
+            return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        }
+        
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent);
+        }
+
         function scrollToResults() {
             try {
-                // First try to scroll to the download button specifically
+                log('Attempting to scroll to download button');
+                
+                // First, ensure the results section is visible
+                const resultsSection = elements.resultsSection;
                 const downloadBtn = elements.downloadBtn;
-                if (downloadBtn && downloadBtn.offsetParent !== null) {
-                    // Calculate position to center the download button in viewport
-                    const buttonRect = downloadBtn.getBoundingClientRect();
-                    const viewportHeight = window.innerHeight;
-                    const scrollOffset = window.pageYOffset + buttonRect.top - (viewportHeight * 0.3);
-                    
-                    window.scrollTo({
-                        top: Math.max(0, scrollOffset),
-                        behavior: 'smooth'
-                    });
-                    
-                    // Add a subtle highlight animation to draw attention to the download button
-                    setTimeout(() => {
-                        downloadBtn.style.animation = 'pulse 1.5s ease-in-out 2';
-                        setTimeout(() => {
-                            downloadBtn.style.animation = '';
-                        }, 3000);
-                    }, 800);
-                    
-                    log('Scrolled to download button');
-                } else {
-                    // Fallback: scroll to results section
-                    const resultsSection = elements.resultsSection;
-                    if (resultsSection && resultsSection.offsetParent !== null) {
-                        resultsSection.scrollIntoView({
+                
+                if (!resultsSection || !downloadBtn) {
+                    log('Results section or download button not found');
+                    return;
+                }
+                
+                // Special handling for Safari and iOS
+                if (isSafari() || isIOS()) {
+                    log('Detected Safari/iOS - using compatible scroll method');
+                    safariScrollToElement(downloadBtn);
+                    return;
+                }
+                
+                // Method 1: Try modern smooth scrolling (Chrome, Firefox, newer browsers)
+                if ('scrollBehavior' in document.documentElement.style) {
+                    try {
+                        downloadBtn.scrollIntoView({
                             behavior: 'smooth',
-                            block: 'start',
+                            block: 'center',
                             inline: 'nearest'
                         });
-                        log('Scrolled to results section');
+                        log('Used modern scrollIntoView');
+                        
+                        // Add highlight animation after scroll completes
+                        setTimeout(() => {
+                            highlightDownloadButton();
+                        }, 1000);
+                        return;
+                    } catch (e) {
+                        log('Modern scrollIntoView failed:', e);
                     }
                 }
+                
+                // Method 2: Manual smooth scroll calculation (general fallback)
+                const targetElement = downloadBtn;
+                const targetRect = targetElement.getBoundingClientRect();
+                const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const targetScrollTop = currentScrollTop + targetRect.top - (window.innerHeight * 0.3);
+                
+                // Use manual smooth scrolling
+                smoothScrollTo(targetScrollTop);
+                log('Used manual smooth scroll');
+                
             } catch (scrollError) {
-                log('Error during scroll:', scrollError);
-                // Silent fallback - try basic scroll
+                log('All scroll methods failed, using basic fallback:', scrollError);
+                basicScrollFallback();
+            }
+        }
+        
+        function safariScrollToElement(element) {
+            try {
+                // Method 1: Try simple scrollIntoView without smooth behavior
+                element.scrollIntoView({ block: 'center' });
+                log('Used Safari-compatible scrollIntoView');
+                
+                setTimeout(() => {
+                    highlightDownloadButton();
+                }, 300);
+                
+            } catch (e) {
+                log('Safari scrollIntoView failed, trying manual calculation:', e);
+                
+                // Method 2: Manual calculation for Safari
                 try {
-                    window.scrollBy({
-                        top: 300,
-                        behavior: 'smooth'
-                    });
-                } catch (e) {
-                    // If all else fails, do nothing
+                    const rect = element.getBoundingClientRect();
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+                    const targetPosition = scrollTop + rect.top - (window.innerHeight / 3);
+                    
+                    // Direct scroll without animation for Safari compatibility
+                    window.scrollTo(0, Math.max(0, targetPosition));
+                    
+                    setTimeout(() => {
+                        highlightDownloadButton();
+                    }, 200);
+                    
+                    log('Used Safari manual scroll calculation');
+                    
+                } catch (e2) {
+                    log('Safari manual scroll failed:', e2);
+                    basicScrollFallback();
                 }
+            }
+        }
+        
+        function basicScrollFallback() {
+            try {
+                // Simulate pressing down arrow multiple times by scrolling in steps
+                const scrollAmount = Math.min(400, window.innerHeight * 0.5);
+                
+                // Instant scroll for maximum compatibility
+                window.scrollBy(0, scrollAmount);
+                
+                // Add highlight after a short delay
+                setTimeout(() => {
+                    highlightDownloadButton();
+                }, 300);
+                
+                log('Used basic scroll fallback');
+            } catch (e) {
+                log('Even basic scroll failed:', e);
+                // Last resort - try to at least highlight the button
+                setTimeout(() => {
+                    highlightDownloadButton();
+                }, 100);
+            }
+        }
+        
+        function smoothScrollTo(targetY) {
+            const startY = window.pageYOffset || document.documentElement.scrollTop;
+            const distance = targetY - startY;
+            const duration = 800; // 800ms duration
+            let startTime = null;
+            
+            function animation(currentTime) {
+                if (startTime === null) startTime = currentTime;
+                const timeElapsed = currentTime - startTime;
+                const progress = Math.min(timeElapsed / duration, 1);
+                
+                // Easing function for smooth animation
+                const easeInOutCubic = progress < 0.5 
+                    ? 4 * progress * progress * progress 
+                    : (progress - 1) * (2 * progress - 2) * (2 * progress - 2) + 1;
+                
+                window.scrollTo(0, startY + distance * easeInOutCubic);
+                
+                if (timeElapsed < duration) {
+                    requestAnimationFrame(animation);
+                } else {
+                    // Ensure we end up exactly at the target
+                    window.scrollTo(0, targetY);
+                    // Add highlight animation after scroll completes
+                    setTimeout(() => {
+                        highlightDownloadButton();
+                    }, 100);
+                }
+            }
+            
+            requestAnimationFrame(animation);
+        }
+        
+        function highlightDownloadButton() {
+            try {
+                const downloadBtn = elements.downloadBtn;
+                if (downloadBtn && downloadBtn.offsetParent !== null) {
+                    // Add temporary highlight class for cross-browser compatibility
+                    downloadBtn.style.transform = 'translateY(-2px) scale(1.02)';
+                    downloadBtn.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.6)';
+                    downloadBtn.style.transition = 'all 0.3s ease';
+                    
+                    // Pulse effect
+                    let pulseCount = 0;
+                    const pulseInterval = setInterval(() => {
+                        if (pulseCount % 2 === 0) {
+                            downloadBtn.style.transform = 'translateY(-4px) scale(1.04)';
+                            downloadBtn.style.boxShadow = '0 10px 30px rgba(16, 185, 129, 0.7)';
+                        } else {
+                            downloadBtn.style.transform = 'translateY(-2px) scale(1.02)';
+                            downloadBtn.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.6)';
+                        }
+                        pulseCount++;
+                        
+                        if (pulseCount >= 4) { // 2 full pulses
+                            clearInterval(pulseInterval);
+                            // Return to hover state
+                            setTimeout(() => {
+                                downloadBtn.style.transform = '';
+                                downloadBtn.style.boxShadow = '';
+                                downloadBtn.style.transition = '';
+                            }, 500);
+                        }
+                    }, 400);
+                    
+                    log('Download button highlighted with manual animation');
+                }
+            } catch (e) {
+                log('Button highlight failed:', e);
             }
         }
 
