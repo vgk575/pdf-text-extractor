@@ -23,6 +23,577 @@
             box-sizing: border-box;
         }
 
+        function showLoading(show, message = 'Processing...') {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            if (shouldShowDebug) {
+                elements.loadingSpinner.style.display = show ? 'block' : 'none';
+                elements.loadingText.textContent = message;
+            } else {
+                // Only show basic loading for non-debug mode
+                if (show && (message.includes('Creating PDF') || message.includes('Loading PDF') || message.includes('Analyzing'))) {
+                    elements.loadingSpinner.style.display = 'block';
+                    elements.loadingText.textContent = message;
+                } else if (!show) {
+                    elements.loadingSpinner.style.display = 'none';
+                }
+            }
+            
+            elements.extractBtn.disabled = show;
+            elements.downloadBtn.disabled = show;
+        }
+
+        function showProgress(show) {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            // Only show progress bar in debug mode
+            if (shouldShowDebug) {
+                elements.progressSection.style.display = show ? 'block' : 'none';
+            } else {
+                elements.progressSection.style.display = 'none';
+            }
+            
+            if (!show) {
+                elements.progressFill.style.width = '0%';
+            }
+        }
+
+        function updateProgress(percent, text = '') {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            // Only update progress in debug mode
+            if (shouldShowDebug) {
+                elements.progressFill.style.width = percent + '%';
+                elements.progressText.textContent = text;
+            }
+        }
+
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorMessage.style.display = 'block';
+            elements.successMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            elements.successMessage.textContent = message;
+            elements.successMessage.style.display = 'block';
+            elements.errorMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        function showInfo(message) {
+            elements.infoMessage.textContent = message;
+            elements.infoMessage.style.display = 'block';
+            elements.errorMessage.style.display = 'none';
+            elements.successMessage.style.display = 'none';
+        }
+
+        function hideMessages() {
+            elements.errorMessage.style.display = 'none';
+            elements.successMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        // Initialize
+        updateRadioStyles();
+        initializeAnalytics();
+        setupMobileFileHandling();
+        updateDeviceInfo();
+        log('PDF Text Pattern Extractor initialized', { 
+            isMobile: isMobileDevice(),
+            deviceInfo: getDeviceInfo(),
+            userAgent: navigator.userAgent
+        });
+
+        // Analytics and usage tracking
+        function initializeAnalytics() {
+            // Initialize local usage counter from localStorage
+            if (!localStorage.getItem('pdfExtractorUsage')) {
+                localStorage.setItem('pdfExtractorUsage', '0');
+            }
+            if (!localStorage.getItem('pdfExtractorStats')) {
+                const initialStats = {
+                    totalFiles: 0,
+                    totalPages: 0,
+                    firstUse: new Date().toISOString(),
+                    lastUse: null,
+                    sessions: 0,
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                };
+                localStorage.setItem('pdfExtractorStats', JSON.stringify(initialStats));
+            }
+            
+            // Increment session count locally
+            incrementSessionCount();
+            updateUsageStats();
+            
+            // Track global session count
+            trackGlobalSession();
+            
+            // Load global usage stats
+            loadGlobalStats();
+            
+            // Log basic usage info (privacy-friendly)
+            logUsageSession();
+        }
+
+        function updateUsageStats() {
+            const usage = localStorage.getItem('pdfExtractorUsage') || '0';
+            const statsElement = document.getElementById('filesProcessed');
+            if (statsElement) {
+                statsElement.textContent = usage;
+            }
+        }
+
+        function incrementUsageCounter(pageCount = 0) {
+            try {
+                // Update local counter
+                const currentUsage = parseInt(localStorage.getItem('pdfExtractorUsage') || '0');
+                const newUsage = currentUsage + 1;
+                localStorage.setItem('pdfExtractorUsage', newUsage.toString());
+                
+                // Update local detailed stats
+                const stats = JSON.parse(localStorage.getItem('pdfExtractorStats') || '{}');
+                stats.totalFiles = newUsage;
+                stats.totalPages = (stats.totalPages || 0) + pageCount;
+                stats.lastUse = new Date().toISOString();
+                localStorage.setItem('pdfExtractorStats', JSON.stringify(stats));
+                
+                updateUsageStats();
+                
+                // Track global file processing
+                trackGlobalFileProcessing();
+                
+                // Send privacy-friendly analytics (if enabled)
+                sendPrivacyFriendlyAnalytics('file_processed', { pageCount });
+                
+                log('Usage counter incremented', { newUsage, pageCount });
+            } catch (error) {
+                log('Error updating usage counter', error);
+            }
+        }
+
+        function incrementSessionCount() {
+            try {
+                const stats = JSON.parse(localStorage.getItem('pdfExtractorStats') || '{}');
+                stats.sessions = (stats.sessions || 0) + 1;
+                localStorage.setItem('pdfExtractorStats', JSON.stringify(stats));
+            } catch (error) {
+                log('Error updating session count', error);
+            }
+        }
+
+        // Global analytics functions
+        async function trackGlobalSession() {
+            try {
+                // Only track one session per day per user to avoid inflating numbers
+                const lastSessionDate = localStorage.getItem('lastGlobalSession');
+                const today = new Date().toDateString();
+                
+                if (lastSessionDate !== today) {
+                    const response = await fetch('https://api.countapi.xyz/hit/vadim-pdf-extractor/sessions');
+                    const data = await response.json();
+                    localStorage.setItem('lastGlobalSession', today);
+                    
+                    log('Global session tracked', { totalSessions: data.value });
+                }
+            } catch (error) {
+                log('Error tracking global session', error);
+            }
+        }
+
+        async function trackGlobalFileProcessing() {
+            try {
+                const response = await fetch('https://api.countapi.xyz/hit/vadim-pdf-extractor/files');
+                const data = await response.json();
+                
+                // Update global counter display
+                updateGlobalStats();
+                
+                log('Global file processing tracked', { totalFiles: data.value });
+            } catch (error) {
+                log('Error tracking global file processing', error);
+            }
+        }
+
+        async function loadGlobalStats() {
+            try {
+                // Load global file counter
+                const filesResponse = await fetch('https://api.countapi.xyz/get/vadim-pdf-extractor/files');
+                const filesData = await filesResponse.json();
+                
+                // Load global session counter
+                const sessionsResponse = await fetch('https://api.countapi.xyz/get/vadim-pdf-extractor/sessions');
+                const sessionsData = await sessionsResponse.json();
+                
+                // Update display
+                updateGlobalStatsDisplay(filesData.value || 0, sessionsData.value || 0);
+                
+                log('Global stats loaded', { 
+                    globalFiles: filesData.value,
+                    globalSessions: sessionsData.value 
+                });
+            } catch (error) {
+                log('Error loading global stats', error);
+            }
+        }
+
+        function updateGlobalStats() {
+            // Reload global stats after processing
+            setTimeout(loadGlobalStats, 1000);
+        }
+
+        function updateGlobalStatsDisplay(totalFiles, totalSessions) {
+            // Update the global stats in the footer
+            const globalStatsElement = document.getElementById('globalStats');
+            if (globalStatsElement) {
+                globalStatsElement.innerHTML = `
+                    <span class="stat-item">
+                        <strong>${totalFiles}</strong> files processed globally
+                    </span>
+                    <span class="stat-item">
+                        <strong>${totalSessions}</strong> users helped
+                    </span>
+                `;
+            }
+        }
+
+        function logUsageSession() {
+            try {
+                const stats = JSON.parse(localStorage.getItem('pdfExtractorStats') || '{}');
+                log('Session started', {
+                    totalFiles: stats.totalFiles,
+                    totalSessions: stats.sessions,
+                    language: stats.language,
+                    timezone: stats.timezone
+                });
+            } catch (error) {
+                log('Error logging session', error);
+            }
+        }
+
+        // Privacy-friendly analytics function
+        function sendPrivacyFriendlyAnalytics(event, data = {}) {
+            // Option 1: Local logging only (current approach)
+            const timestamp = new Date().toISOString();
+            const analyticsData = {
+                timestamp,
+                event,
+                data,
+                // No personal info, just aggregate data
+                session: Date.now(), // Session identifier (not user identifier)
+                version: '1.0'
+            };
+            
+            log('Analytics event', analyticsData);
+            
+            // Option 2: Send to your own simple analytics endpoint (optional)
+            // sendToSimpleAnalytics(analyticsData);
+        }
+
+        // Optional: Simple analytics endpoint (you would implement this)
+        async function sendToSimpleAnalytics(data) {
+            try {
+                // Only if you want to collect aggregated usage data
+                // await fetch('https://your-analytics-endpoint.com/track', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(data)
+                // });
+            } catch (error) {
+                // Fail silently - analytics should never break the app
+                console.log('Analytics error (ignored):', error);
+            }
+        }
+
+        // Stats modal functions
+        async function showDetailedStats() {
+            try {
+                const stats = JSON.parse(localStorage.getItem('pdfExtractorStats') || '{}');
+                const usage = parseInt(localStorage.getItem('pdfExtractorUsage') || '0');
+                
+                const statsGrid = document.getElementById('statsGrid');
+                
+                // Calculate days since first use
+                const firstUse = stats.firstUse ? new Date(stats.firstUse) : new Date();
+                const daysSinceFirst = Math.max(1, Math.ceil((new Date() - firstUse) / (1000 * 60 * 60 * 24)));
+                
+                // Get global stats
+                const globalFiles = await getGlobalFileCount();
+                const globalSessions = await getGlobalSessionCount();
+                
+                statsGrid.innerHTML = `
+                    <div class="stats-card">
+                        <div class="stats-number">${usage}</div>
+                        <div class="stats-label">Your Files Processed</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${stats.totalPages || 0}</div>
+                        <div class="stats-label">Your Pages Extracted</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${stats.sessions || 1}</div>
+                        <div class="stats-label">Your Sessions</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${daysSinceFirst}</div>
+                        <div class="stats-label">Days Using Tool</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${globalFiles}</div>
+                        <div class="stats-label">Global Files Processed</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-number">${globalSessions}</div>
+                        <div class="stats-label">Total Users Helped</div>
+                    </div>
+                `;
+                
+                document.getElementById('statsModal').style.display = 'block';
+                
+                // Send analytics event for viewing stats
+                sendPrivacyFriendlyAnalytics('stats_viewed');
+                
+            } catch (error) {
+                log('Error showing stats', error);
+                alert('Unable to load statistics');
+            }
+        }
+
+        function closeStatsModal() {
+            document.getElementById('statsModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('statsModal');
+            if (event.target === modal) {
+                closeStatsModal();
+            }
+        }
+
+        // Helper functions for global stats
+        async function getGlobalFileCount() {
+            try {
+                const response = await fetch('https://api.countapi.xyz/get/vadim-pdf-extractor/files');
+                const data = await response.json();
+                return data.value || 0;
+            } catch (error) {
+                return 'N/A';
+            }
+        }
+
+        async function getGlobalSessionCount() {
+            try {
+                const response = await fetch('https://api.countapi.xyz/get/vadim-pdf-extractor/sessions');
+                const data = await response.json();
+                return data.value || 0;
+            } catch (error) {
+                return 'N/A';
+            }
+        }
+
+        // Function to add highlighting to a page
+        async function addHighlightingToPage(pdfDoc, page, pageNumber) {
+            try {
+                const pattern1 = elements.pattern1Input.value.trim();
+                const pattern2 = elements.pattern2Input.value.trim();
+                
+                if (!pattern1) return;
+                
+                log(`Adding highlighting to page ${pageNumber}`);
+                
+                // Get the original page data to find text positions
+                const originalPage = await currentPDF.getPage(pageNumber);
+                const textContent = await originalPage.getTextContent();
+                const viewport = originalPage.getViewport({ scale: 1.0 });
+                
+                // Get page dimensions from pdf-lib page
+                const { width: pageWidth, height: pageHeight } = page.getSize();
+                
+                // Create highlighting rectangles for matched text
+                const highlights = [];
+                
+                // Build text segments with proper positioning
+                const textSegments = [];
+                textContent.items.forEach((item, index) => {
+                    if (item.str && item.str.trim() && item.transform) {
+                        const transform = item.transform;
+                        // Extract position and scale from transformation matrix
+                        const scaleX = Math.sqrt(transform[0] * transform[0] + transform[1] * transform[1]);
+                        const scaleY = Math.sqrt(transform[2] * transform[2] + transform[3] * transform[3]);
+                        const x = transform[4];
+                        const y = transform[5];
+                        
+                        textSegments.push({
+                            text: item.str,
+                            x: x,
+                            y: y,
+                            width: item.width || (item.str.length * scaleX * 0.6), // Better width estimation
+                            height: item.height || (scaleY * 1.2), // Better height estimation
+                            fontSize: scaleY,
+                            index: index
+                        });
+                    }
+                });
+                
+                log(`Found ${textSegments.length} text segments on page ${pageNumber}`);
+                
+                // Function to check if text contains pattern (case insensitive)
+                function containsPattern(text, pattern) {
+                    return text.toLowerCase().includes(pattern.toLowerCase());
+                }
+                
+                // Find matching text segments
+                textSegments.forEach(segment => {
+                    const pattern1Lower = pattern1.toLowerCase();
+                    const pattern2Lower = pattern2 ? pattern2.toLowerCase() : '';
+                    const segmentTextLower = segment.text.toLowerCase();
+                    
+                    let shouldHighlight = false;
+                    let matchedPattern = '';
+                    
+                    // Check for exact pattern matches within this segment
+                    if (containsPattern(segment.text, pattern1)) {
+                        shouldHighlight = true;
+                        matchedPattern = pattern1;
+                    }
+                    
+                    if (pattern2 && containsPattern(segment.text, pattern2)) {
+                        shouldHighlight = true;
+                        matchedPattern = pattern2;
+                    }
+                    
+                    if (shouldHighlight) {
+                        // Convert PDF coordinates to pdf-lib coordinates
+                        // PDF.js uses bottom-left origin, pdf-lib also uses bottom-left origin
+                        // but we need to account for the viewport scaling
+                        
+                        const pdfX = segment.x;
+                        const pdfY = segment.y;
+                        
+                        // Calculate proper dimensions
+                        const rectWidth = segment.width;
+                        const rectHeight = segment.height;
+                        
+                        // Adjust Y coordinate - PDF.js Y is from bottom, pdf-lib Y is also from bottom
+                        // but we need to account for text baseline vs rectangle positioning
+                        const adjustedY = pdfY - (rectHeight * 0.2); // Slight adjustment for text baseline
+                        
+                        highlights.push({
+                            x: pdfX,
+                            y: adjustedY,
+                            width: rectWidth,
+                            height: rectHeight,
+                            pattern: matchedPattern,
+                            originalText: segment.text
+                        });
+                        
+                        log(`Found match for "${matchedPattern}" in text "${segment.text}" at (${pdfX}, ${adjustedY})`);
+                    }
+                });
+                
+                // Also check for patterns that span multiple segments
+                // Combine adjacent text segments to check for patterns across segments
+                for (let i = 0; i < textSegments.length - 1; i++) {
+                    const currentSegment = textSegments[i];
+                    const nextSegment = textSegments[i + 1];
+                    
+                    // Check if segments are on the same line (similar Y coordinates)
+                    const yDiff = Math.abs(currentSegment.y - nextSegment.y);
+                    const avgHeight = (currentSegment.height + nextSegment.height) / 2;
+                    
+                    if (yDiff < avgHeight * 0.5) { // Same line
+                        const combinedText = currentSegment.text + ' ' + nextSegment.text;
+                        
+                        if (containsPattern(combinedText, pattern1) || (pattern2 && containsPattern(combinedText, pattern2))) {
+                            let matchedPattern = '';
+                            if (containsPattern(combinedText, pattern1)) matchedPattern = pattern1;
+                            else if (pattern2 && containsPattern(combinedText, pattern2)) matchedPattern = pattern2;
+                            
+                            // Create a highlight that spans both segments
+                            const startX = Math.min(currentSegment.x, nextSegment.x);
+                            const endX = Math.max(currentSegment.x + currentSegment.width, nextSegment.x + nextSegment.width);
+                            const avgY = (currentSegment.y + nextSegment.y) / 2;
+                            const maxHeight = Math.max(currentSegment.height, nextSegment.height);
+                            
+                            highlights.push({
+                                x: startX,
+                                y: avgY - (maxHeight * 0.2),
+                                width: endX - startX,
+                                height: maxHeight,
+                                pattern: matchedPattern,
+                                originalText: combinedText
+                            });
+                            
+                            log(`Found spanning match for "${matchedPattern}" in combined text "${combinedText}"`);
+                        }
+                    }
+                }
+                
+                // Remove duplicate highlights (same position and size)
+                const uniqueHighlights = [];
+                highlights.forEach(highlight => {
+                    const isDuplicate = uniqueHighlights.some(existing => 
+                        Math.abs(existing.x - highlight.x) < 2 &&
+                        Math.abs(existing.y - highlight.y) < 2 &&
+                        Math.abs(existing.width - highlight.width) < 5
+                    );
+                    
+                    if (!isDuplicate) {
+                        uniqueHighlights.push(highlight);
+                    }
+                });
+                
+                log(`Creating ${uniqueHighlights.length} unique highlights on page ${pageNumber}`);
+                
+                // Add yellow highlight rectangles to the page
+                for (const highlight of uniqueHighlights) {
+                    try {
+                        // Ensure coordinates are valid
+                        if (highlight.x >= 0 && highlight.y >= 0 && 
+                            highlight.width > 0 && highlight.height > 0 &&
+                            highlight.x < pageWidth && highlight.y < pageHeight) {
+                            
+                            // Create a yellow semi-transparent rectangle
+                            page.drawRectangle({
+                                x: highlight.x,
+                                y: highlight.y,
+                                width: Math.min(highlight.width, pageWidth - highlight.x),
+                                height: Math.min(highlight.height, pageHeight - highlight.y),
+                                color: PDFLib.rgb(1, 1, 0), // Yellow color
+                                opacity: 0.3
+                            });
+                            
+                            log(`Added highlight for "${highlight.pattern}" at (${highlight.x.toFixed(1)}, ${highlight.y.toFixed(1)}) size ${highlight.width.toFixed(1)}x${highlight.height.toFixed(1)}`);
+                        } else {
+                            log(`Skipped invalid highlight coordinates: (${highlight.x}, ${highlight.y}) size ${highlight.width}x${highlight.height}`);
+                        }
+                    } catch (drawError) {
+                        log(`Failed to draw highlight rectangle:`, drawError);
+                    }
+                }
+                
+                log(`Successfully added ${uniqueHighlights.length} highlights to page ${pageNumber}`);
+                
+            } catch (highlightError) {
+                log(`Error adding highlighting to page ${pageNumber}:`, highlightError);
+                // Don't throw error, just continue without highlighting
+            }
+        }
+    </script>
+</body>
+</html>
+
         body {
             font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
@@ -91,19 +662,19 @@
         }
 
         .form-section {
-            padding: 40px;
+            padding: 30px 20px;
         }
 
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 18px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 600;
             color: #333;
-            font-size: 1rem;
+            font-size: 0.95rem;
         }
 
         .file-input-wrapper {
@@ -118,6 +689,7 @@
             width: 100%;
             height: 100%;
             cursor: pointer;
+            z-index: 2;
         }
 
         .file-input-display {
@@ -130,6 +702,79 @@
             cursor: pointer;
             transition: all 0.3s ease;
             min-height: 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Mobile-specific file input styling */
+        @media (max-width: 768px) {
+            .file-input-wrapper {
+                margin-bottom: 15px;
+            }
+            
+            .file-input {
+                position: static;
+                opacity: 1;
+                width: 100%;
+                height: auto;
+                padding: 15px;
+                background: #4f46e5;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                z-index: 3;
+            }
+
+            .file-input-display {
+                display: none;
+            }
+
+            .mobile-file-button {
+                display: block;
+                width: 100%;
+                padding: 18px 24px;
+                background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1.1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+                margin-bottom: 10px;
+            }
+
+            .mobile-file-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+            }
+
+            .mobile-file-info {
+                background: #f8f9fa;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                color: #666;
+                border: 1px solid #dee2e6;
+                min-height: 50px;
+                display: flex;
+                align-items: center;
+            }
+        }
+
+        /* Desktop file input (hidden on mobile) */
+        @media (min-width: 769px) {
+            .mobile-file-button {
+                display: none;
+            }
+            
+            .mobile-file-info {
+                display: none;
+            }
         }
 
         .file-input-display:hover {
@@ -154,10 +799,10 @@
 
         .text-input {
             width: 100%;
-            padding: 15px 20px;
+            padding: 12px 16px;
             border: 2px solid #e9ecef;
-            border-radius: 12px;
-            font-size: 1rem;
+            border-radius: 10px;
+            font-size: 0.95rem;
             transition: all 0.3s ease;
             background: white;
         }
@@ -171,20 +816,21 @@
 
         .operator-group {
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
+            gap: 12px;
+            margin-top: 8px;
         }
 
         .radio-option {
             display: flex;
             align-items: center;
-            padding: 12px 20px;
+            padding: 10px 16px;
             background: #f8f9fa;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
             flex: 1;
             justify-content: center;
+            font-size: 0.9rem;
         }
 
         .radio-option:hover {
@@ -205,12 +851,12 @@
 
         .extract-btn {
             width: 100%;
-            padding: 20px;
+            padding: 16px;
             background: linear-gradient(135deg, #4f46e5, #7c3aed);
             color: white;
             border: none;
-            border-radius: 16px;
-            font-size: 1.1rem;
+            border-radius: 12px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -433,9 +1079,9 @@
             display: flex;
             align-items: flex-start;
             cursor: pointer;
-            padding: 20px;
+            padding: 14px 16px;
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 16px;
+            border-radius: 12px;
             transition: all 0.3s ease;
             border: 2px solid #e2e8f0;
             position: relative;
@@ -456,8 +1102,8 @@
         .checkbox-label:hover {
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             border-color: #4f46e5;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
         }
 
         .checkbox-label:hover::before {
@@ -469,11 +1115,11 @@
         }
 
         .checkbox-custom {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             border: 3px solid #cbd5e1;
-            border-radius: 8px;
-            margin-right: 16px;
+            border-radius: 6px;
+            margin-right: 12px;
             position: relative;
             transition: all 0.3s ease;
             flex-shrink: 0;
@@ -496,7 +1142,7 @@
             transform: translate(-50%, -50%) scale(1);
             color: #fbbf24;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             animation: checkmark 0.3s ease-in-out;
         }
@@ -519,8 +1165,9 @@
         .checkbox-text {
             font-weight: 500;
             color: #334155;
-            line-height: 1.5;
+            line-height: 1.4;
             flex: 1;
+            font-size: 0.9rem;
         }
 
         .checkbox-input:checked + .checkbox-custom + .checkbox-text {
@@ -530,11 +1177,11 @@
 
         /* Special styling for the info box */
         .info-box {
-            margin-top: 12px;
-            padding: 16px;
+            margin-top: 8px;
+            padding: 12px;
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border-radius: 12px;
-            font-size: 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
             color: #0f172a;
             border-left: 4px solid #0ea5e9;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -820,45 +1467,89 @@
         /* Mobile Responsiveness */
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 8px;
+            }
+
+            .header {
+                padding: 30px 20px;
             }
 
             .header h1 {
-                font-size: 2.2rem;
+                font-size: 2rem;
             }
 
             .header p {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
 
             .header .creator-badge {
                 position: static;
-                margin-bottom: 20px;
+                margin-bottom: 15px;
                 display: inline-block;
+                padding: 6px 12px;
+                font-size: 0.8rem;
             }
 
             .form-section {
-                padding: 30px 20px;
+                padding: 20px 15px;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            .form-group label {
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+
+            .text-input {
+                padding: 10px 14px;
+                font-size: 0.9rem;
             }
 
             .operator-group {
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
+                margin-top: 6px;
             }
 
             .radio-option {
                 justify-content: flex-start;
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+
+            .checkbox-label {
+                padding: 12px 14px;
+            }
+
+            .checkbox-text {
+                font-size: 0.85rem;
+                line-height: 1.3;
+            }
+
+            .info-box {
+                padding: 10px;
+                font-size: 0.8rem;
+                margin-top: 6px;
+            }
+
+            .extract-btn {
+                padding: 14px;
+                font-size: 0.95rem;
             }
 
             .results-header {
                 flex-direction: column;
-                gap: 15px;
+                gap: 12px;
                 align-items: stretch;
+                padding: 15px;
             }
 
             .footer-content {
                 grid-template-columns: 1fr;
-                gap: 30px;
+                gap: 25px;
             }
 
             .social-links {
@@ -871,37 +1562,56 @@
             }
 
             .mobile-download-section {
-                margin: 15px 0;
-                padding: 15px;
+                margin: 12px 0;
+                padding: 12px;
             }
 
             .mobile-download-link {
-                padding: 15px 20px;
+                padding: 12px 16px;
+                font-size: 0.95rem;
+            }
+
+            .mobile-file-button {
+                padding: 14px 20px;
                 font-size: 1rem;
+            }
+
+            .mobile-file-info {
+                padding: 10px;
+                font-size: 0.85rem;
+                min-height: 40px;
             }
         }
 
         @media (max-width: 480px) {
             .header h1 {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
 
             .extract-btn {
-                padding: 16px;
-                font-size: 1rem;
+                padding: 12px;
+                font-size: 0.9rem;
             }
 
             .checkbox-label {
-                padding: 16px;
+                padding: 10px 12px;
             }
 
             .checkbox-custom {
-                width: 24px;
-                height: 24px;
+                width: 20px;
+                height: 20px;
             }
 
             .checkbox-input:checked + .checkbox-custom::after {
-                font-size: 16px;
+                font-size: 14px;
+            }
+
+            .form-section {
+                padding: 15px 10px;
+            }
+
+            .form-group {
+                margin-bottom: 12px;
             }
         }
     </style>
@@ -918,6 +1628,15 @@
             <div class="form-group">
                 <label for="pdfFile">Select PDF File</label>
                 <div class="file-input-wrapper">
+                    <!-- Mobile file input -->
+                    <button type="button" class="mobile-file-button" id="mobileFileButton">
+                        📄 Choose PDF File
+                    </button>
+                    <div class="mobile-file-info" id="mobileFileInfo">
+                        Tap the button above to select a PDF file from your device
+                    </div>
+                    
+                    <!-- Desktop file input -->
                     <input type="file" id="pdfFile" class="file-input" accept=".pdf">
                     <div class="file-input-display" id="fileDisplay">
                         <svg class="file-icon" fill="currentColor" viewBox="0 0 24 24">
@@ -950,6 +1669,14 @@
                         <span>OR (either pattern can be present)</span>
                     </label>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="includeFirstPage" class="checkbox-input" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Include first page of original PDF in the resulting file (recommended for context)</span>
+                </label>
             </div>
 
             <div class="form-group">
@@ -1110,6 +1837,8 @@
             pdfFileInput: document.getElementById('pdfFile'),
             fileDisplay: document.getElementById('fileDisplay'),
             fileText: document.getElementById('fileText'),
+            mobileFileButton: document.getElementById('mobileFileButton'),
+            mobileFileInfo: document.getElementById('mobileFileInfo'),
             pattern1Input: document.getElementById('pattern1'),
             pattern2Input: document.getElementById('pattern2'),
             extractBtn: document.getElementById('extractBtn'),
@@ -1208,10 +1937,33 @@
         elements.extractBtn.addEventListener('click', extractPages);
         elements.downloadBtn.addEventListener('click', downloadExtractedPages);
 
+        // Mobile file button event listener
+        if (elements.mobileFileButton) {
+            elements.mobileFileButton.addEventListener('click', function() {
+                elements.pdfFileInput.click();
+            });
+        }
+
         // Radio button styling
         document.querySelectorAll('input[name="operator"]').forEach(radio => {
             radio.addEventListener('change', updateRadioStyles);
         });
+
+        // Enhanced file input handling for mobile
+        function setupMobileFileHandling() {
+            if (isMobileDevice()) {
+                // Create a more robust file input for mobile
+                elements.pdfFileInput.addEventListener('click', function(e) {
+                    // Ensure the file picker opens
+                    log('Mobile file input clicked');
+                });
+
+                // Add more specific event handling for mobile
+                elements.pdfFileInput.addEventListener('touchstart', function(e) {
+                    log('Mobile file input touched');
+                });
+            }
+        }
 
         function log(message, data = null) {
             console.log(message, data);
@@ -1233,10 +1985,34 @@
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
+            log('File selected', { 
+                fileName: file ? file.name : 'No file',
+                fileType: file ? file.type : 'No type',
+                fileSize: file ? file.size : 'No size',
+                isMobile: isMobileDevice()
+            });
+            
             if (file && file.type === 'application/pdf') {
+                // Update both desktop and mobile UI
+                if (isMobileDevice()) {
+                    elements.mobileFileInfo.textContent = `Selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+                    elements.mobileFileButton.textContent = '📄 PDF Selected ✓';
+                    elements.mobileFileButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                } else {
+                    elements.fileDisplay.classList.add('has-file');
+                    elements.fileText.textContent = `${file.name} (Loading...)`;
+                }
+                
                 loadPDF(file);
             } else {
                 showError('Please select a valid PDF file.');
+                
+                // Reset mobile UI on error
+                if (isMobileDevice()) {
+                    elements.mobileFileInfo.textContent = 'Please select a valid PDF file';
+                    elements.mobileFileButton.textContent = '📄 Choose PDF File';
+                    elements.mobileFileButton.style.background = 'linear-gradient(135deg, #4f46e5, #7c3aed)';
+                }
             }
         }
 
@@ -1281,13 +2057,20 @@
                     verbosity: 0 // Reduce console noise
                 }).promise;
                 
-                elements.fileDisplay.classList.add('has-file');
-                elements.fileText.textContent = `${file.name} (${currentPDF.numPages} pages)`;
+                // Update UI for both desktop and mobile
+                if (isMobileDevice()) {
+                    elements.mobileFileInfo.textContent = `✅ ${file.name} loaded successfully (${currentPDF.numPages} pages)`;
+                    elements.mobileFileButton.textContent = '📄 PDF Ready ✓';
+                } else {
+                    elements.fileDisplay.classList.add('has-file');
+                    elements.fileText.textContent = `${file.name} (${currentPDF.numPages} pages)`;
+                }
                 
                 log('PDF loaded successfully', { 
                     pages: currentPDF.numPages,
                     originalBytesLength: originalPdfBytes.length,
-                    pdfJsBufferLength: pdfJsBuffer.byteLength
+                    pdfJsBufferLength: pdfJsBuffer.byteLength,
+                    isMobile: isMobileDevice()
                 });
                 showLoading(false);
                 
@@ -1329,9 +2112,17 @@
 
             const operator = document.querySelector('input[name="operator"]:checked').value;
             const highlightCheckbox = document.getElementById('highlightText');
+            const includeFirstPageCheckbox = document.getElementById('includeFirstPage');
             shouldHighlightText = highlightCheckbox.checked;
+            const shouldIncludeFirstPage = includeFirstPageCheckbox.checked;
             
-            log('Starting extraction', { pattern1, pattern2, operator, highlightText: shouldHighlightText });
+            log('Starting extraction', { 
+                pattern1, 
+                pattern2, 
+                operator, 
+                highlightText: shouldHighlightText,
+                includeFirstPage: shouldIncludeFirstPage
+            });
 
             try {
                 showLoading(true, 'Analyzing PDF pages...');
@@ -1565,8 +2356,10 @@
 
                 log(`Extracting ${validPageNumbers.length} valid pages from ${totalPages} total pages`);
 
-                // First, copy the first page as a cover page (unless it's already in the extracted pages)
-                const includeFirstPageAsCover = !validPageNumbers.includes(1);
+                // Check if first page should be included as cover
+                const includeFirstPageCheckbox = document.getElementById('includeFirstPage');
+                const shouldIncludeFirstPage = includeFirstPageCheckbox ? includeFirstPageCheckbox.checked : true;
+                const includeFirstPageAsCover = shouldIncludeFirstPage && !validPageNumbers.includes(1);
                 let successfulCopies = 0;
                 
                 if (includeFirstPageAsCover) {
