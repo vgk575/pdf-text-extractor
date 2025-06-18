@@ -35,7 +35,7 @@
         .header {
             background: linear-gradient(135deg, #4f46e5, #7c3aed);
             color: white;
-            padding: 30px 20px;
+            padding: 20px 20px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -53,8 +53,8 @@
         }
 
         .header h1 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
+            font-size: 1.9rem;
+            margin-bottom: 6px;
             font-weight: 700;
             position: relative;
             z-index: 1;
@@ -71,12 +71,12 @@
 
         .header .creator-badge {
             position: absolute;
-            top: 10px;
-            right: 20px;
+            top: 8px;
+            right: 15px;
             background: rgba(255,255,255,0.2);
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
             font-weight: 500;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.3);
@@ -163,21 +163,23 @@
 
         .operator-group {
             display: flex;
-            gap: 12px;
-            margin-top: 8px;
+            gap: 10px;
+            margin-top: 6px;
+            flex-wrap: wrap;
         }
 
         .radio-option {
             display: flex;
             align-items: center;
-            padding: 10px 16px;
+            padding: 8px 12px;
             background: #f8f9fa;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
             flex: 1;
             justify-content: center;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            min-width: fit-content;
         }
 
         .radio-option:hover {
@@ -185,8 +187,8 @@
         }
 
         .radio-option input[type="radio"] {
-            margin-right: 6px;
-            transform: scale(1.1);
+            margin-right: 5px;
+            transform: scale(1.0);
         }
 
         .radio-option.selected {
@@ -620,23 +622,23 @@
             }
 
             .header {
-                padding: 20px 15px;
+                padding: 15px 15px;
             }
 
             .header h1 {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
 
             .header p {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
             }
 
             .header .creator-badge {
                 position: static;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
                 display: inline-block;
-                padding: 4px 8px;
-                font-size: 0.75rem;
+                padding: 3px 6px;
+                font-size: 0.7rem;
             }
 
             .form-section {
@@ -658,15 +660,14 @@
             }
 
             .operator-group {
-                flex-direction: column;
                 gap: 8px;
-                margin-top: 6px;
+                margin-top: 5px;
             }
 
             .radio-option {
-                justify-content: flex-start;
-                padding: 8px 12px;
-                font-size: 0.8rem;
+                justify-content: center;
+                padding: 6px 10px;
+                font-size: 0.75rem;
             }
 
             .checkbox-label {
@@ -718,7 +719,7 @@
 
         @media (max-width: 480px) {
             .header h1 {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
             }
 
             .extract-btn {
@@ -745,6 +746,11 @@
 
             .form-group {
                 margin-bottom: 12px;
+            }
+
+            .radio-option {
+                padding: 5px 8px;
+                font-size: 0.7rem;
             }
         }
     </style>
@@ -782,7 +788,7 @@
             </div>
 
             <div class="form-group">
-                <label>Logical Operator (when both patterns are provided)</label>
+                <label>Logical Operator (both patterns are provided):</label>
                 <div class="operator-group">
                     <label class="radio-option" for="operatorAnd">
                         <input type="radio" id="operatorAnd" name="operator" value="and" checked>
