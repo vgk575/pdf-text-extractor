@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Text Pattern Extractor - Free Tool by Vadim Kleiner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 1.2rem;
+            position: relative;
+            z-index: 1;
+            font-weight: 400;
+        }
+
+        .header .creator-badge {
+            position: absolute;
+            top: 15px;
+            right: 30px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .form-section {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 60px;
+        }
+
+        .file-input-display:hover {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        }
+
+        .file-input-display.has-file {
+            border-color: #10b981;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-style: solid;
+        }
+
+        .file-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            opacity: 0.6;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
+        }
+
+        .operator-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .radio-option:hover {
+            background: #e9ecef;
+        }
+
+        .radio-option input[type="radio"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+
+        .radio-option.selected {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .extract-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .extract-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .extract-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .extract-btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
+        .extract-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed, #db2777);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .results-section {
+            padding: 0 40px 40px;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .results-count {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .download-btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .download-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+        }
+
+        .download-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .page-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .page-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .page-item:hover {
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .page-number {
+            font-weight: 600;
+            color: #4f46e5;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .page-preview {
+            color: #666;
+            line-height: 1.6;
+            max-height: 120px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .page-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(transparent, white);
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #fef3c7, #fcd34d);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .checkbox-label::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.05), transparent);
+            transition: left 0.5s;
+        }
+
+        .checkbox-label:hover {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .checkbox-label:hover::before {
+            left: 100%;
+        }
+
+        .checkbox-input {
+            display: none;
+        }
+
+        .checkbox-custom {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #cbd5e1;
+            border-radius: 8px;
+            margin-right: 16px;
+            position: relative;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            background: white;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+        }
+
+        .checkbox-input:checked + .checkbox-custom {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            border-color: #4f46e5;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .checkbox-input:checked + .checkbox-custom::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            color: #fbbf24;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            animation: checkmark 0.3s ease-in-out;
+        }
+
+        @keyframes checkmark {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .checkbox-text {
+            font-weight: 500;
+            color: #334155;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .checkbox-input:checked + .checkbox-custom + .checkbox-text {
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        /* Special styling for the info box */
+        .info-box {
+            margin-top: 12px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 12px;
+            font-size: 0.9rem;
+            color: #0f172a;
+            border-left: 4px solid #0ea5e9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .info-box strong {
+            color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        .info-box small {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        /* Footer Styles */
+        .footer {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            margin-top: 60px;
+            padding: 50px 20px 20px;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .footer-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .footer-section h3 {
+            color: #f1f5f9;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .footer-section p {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .social-links {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .social-link {
+            color: #cbd5e1;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .social-link:hover {
+            color: white;
+            background: rgba(79, 70, 229, 0.2);
+            transform: translateX(5px);
+        }
+
+        .footer-bottom {
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid #475569;
+            color: #94a3b8;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2.2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .header .creator-badge {
+                position: static;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+
+            .form-section {
+                padding: 30px 20px;
+            }
+
+            .operator-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .radio-option {
+                justify-content: flex-start;
+            }
+
+            .results-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .social-links {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .extract-btn {
+                padding: 16px;
+                font-size: 1rem;
+            }
+
+            .checkbox-label {
+                padding: 16px;
+            }
+
+            .checkbox-custom {
+                width: 24px;
+                height: 24px;
+            }
+
+            .checkbox-input:checked + .checkbox-custom::after {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="creator-badge">Created by Vadim Kleiner</div>
+            <h1>PDF Text Pattern Extractor</h1>
+            <p>Extract pages containing specific text patterns while preserving original layout</p>
+        </div>
+
+        <div class="form-section">
+            <div class="form-group">
+                <label for="pdfFile">Select PDF File</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="pdfFile" class="file-input" accept=".pdf">
+                    <div class="file-input-display" id="fileDisplay">
+                        <svg class="file-icon" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        <span id="fileText">Choose a PDF file or drag it here</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="pattern1">Text Pattern 1 (Required)</label>
+                <input type="text" id="pattern1" class="text-input" placeholder="Enter text pattern to search for" required>
+            </div>
+
+            <div class="form-group">
+                <label for="pattern2">Text Pattern 2 (Optional)</label>
+                <input type="text" id="pattern2" class="text-input" placeholder="Enter second text pattern (leave empty to use only Pattern 1)">
+            </div>
+
+            <div class="form-group">
+                <label>Logical Operator (when both patterns are provided)</label>
+                <div class="operator-group">
+                    <label class="radio-option" for="operatorAnd">
+                        <input type="radio" id="operatorAnd" name="operator" value="and" checked>
+                        <span>AND (both patterns must be present)</span>
+                    </label>
+                    <label class="radio-option" for="operatorOr">
+                        <input type="radio" id="operatorOr" name="operator" value="or">
+                        <span>OR (either pattern can be present)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="highlightText" class="checkbox-input">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Highlight matched text patterns in yellow in the resulting PDF</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="showDebugInfo" class="checkbox-input">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Show detailed processing steps and debug information</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="chooseSaveLocation" class="checkbox-input">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Choose where to save the extracted PDF (if unchecked, saves to Downloads folder)</span>
+                </label>
+                <div class="info-box">
+                    <strong>💡 Tip:</strong> Check this box to manually select the save location (same folder as original file, desktop, etc.). 
+                    If unchecked, the file will automatically download to your browser's default Downloads folder.
+                    <br><small><em>Note: "Choose save location" feature works best in Chrome/Edge browsers.</em></small>
+                </div>
+            </div>
+
+            <button id="extractBtn" class="extract-btn">Extract Pages</button>
+
+            <div class="progress-section" id="progressSection">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Processing...</div>
+            </div>
+
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <p id="loadingText">Initializing...</p>
+            </div>
+
+            <div class="message error-message" id="errorMessage"></div>
+            <div class="message success-message" id="successMessage"></div>
+            <div class="message info-message" id="infoMessage"></div>
+            <div class="debug-info" id="debugInfo"></div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <div class="results-count" id="resultsCount"></div>
+                <button id="downloadBtn" class="download-btn">Download PDF with Extracted Pages</button>
+            </div>
+            <div class="page-list" id="pageList"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Free PDF Tools</h3>
+                <p>Created by <strong>Vadim Kleiner</strong> to help professionals work more efficiently with PDF documents.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Connect</h3>
+                <div class="social-links">
+                    <a href="https://linkedin.com/in/yourprofile" target="_blank" class="social-link">
+                        <span>💼</span> LinkedIn
+                    </a>
+                    <a href="https://github.com/yourprofile" target="_blank" class="social-link">
+                        <span>💻</span> GitHub
+                    </a>
+                    <a href="mailto:your.email@example.com" class="social-link">
+                        <span>📧</span> Email
+                    </a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>About This Tool</h3>
+                <p>Free to use • No registration required • Privacy-first design</p>
+                <p><small>Your files are processed locally in your browser and never uploaded to any server.</small></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Vadim Kleiner. Made with ❤️ for the community.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Global variables
+        let originalPdfBytes = null;
+        let currentPDF = null;
+        let extractedPageNumbers = [];
+        let extractedPages = [];
+        let originalFileName = '';
+        let shouldHighlightText = false;
+
+        // DOM elements
+        const elements = {
+            pdfFileInput: document.getElementById('pdfFile'),
+            fileDisplay: document.getElementById('fileDisplay'),
+            fileText: document.getElementById('fileText'),
+            pattern1Input: document.getElementById('pattern1'),
+            pattern2Input: document.getElementById('pattern2'),
+            extractBtn: document.getElementById('extractBtn'),
+            progressSection: document.getElementById('progressSection'),
+            progressFill: document.getElementById('progressFill'),
+            progressText: document.getElementById('progressText'),
+            loadingSpinner: document.getElementById('loadingSpinner'),
+            loadingText: document.getElementById('loadingText'),
+            errorMessage: document.getElementById('errorMessage'),
+            successMessage: document.getElementById('successMessage'),
+            infoMessage: document.getElementById('infoMessage'),
+            debugInfo: document.getElementById('debugInfo'),
+            resultsSection: document.getElementById('resultsSection'),
+            resultsCount: document.getElementById('resultsCount'),
+            pageList: document.getElementById('pageList'),
+            downloadBtn: document.getElementById('downloadBtn')
+        };
+
+        // Event listeners
+        elements.pdfFileInput.addEventListener('change', handleFileSelect);
+        elements.fileDisplay.addEventListener('dragover', handleDragOver);
+        elements.fileDisplay.addEventListener('drop', handleDrop);
+        elements.extractBtn.addEventListener('click', extractPages);
+        elements.downloadBtn.addEventListener('click', downloadExtractedPages);
+
+        // Radio button styling
+        document.querySelectorAll('input[name="operator"]').forEach(radio => {
+            radio.addEventListener('change', updateRadioStyles);
+        });
+
+        function log(message, data = null) {
+            console.log(message, data);
+            
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            if (shouldShowDebug) {
+                const debugDiv = elements.debugInfo;
+                const timestamp = new Date().toLocaleTimeString();
+                debugDiv.innerHTML += `<div>[${timestamp}] ${message}${data ? ': ' + JSON.stringify(data, null, 2) : ''}</div>`;
+                debugDiv.style.display = 'block';
+            } else {
+                // Hide debug info when not needed
+                elements.debugInfo.style.display = 'none';
+            }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                loadPDF(file);
+            } else {
+                showError('Please select a valid PDF file.');
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            elements.fileDisplay.style.borderColor = '#667eea';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            elements.fileDisplay.style.borderColor = '#dee2e6';
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                elements.pdfFileInput.files = files;
+                loadPDF(files[0]);
+            } else {
+                showError('Please drop a valid PDF file.');
+            }
+        }
+
+        async function loadPDF(file) {
+            try {
+                showLoading(true, 'Loading PDF...');
+                hideMessages();
+                
+                originalFileName = file.name.replace(/\.pdf$/i, '');
+                log(`Loading PDF: ${file.name}`, { size: file.size });
+                
+                // Read file as ArrayBuffer and create multiple copies to prevent detachment
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // Create a stable copy for pdf-lib (as Uint8Array)
+                originalPdfBytes = new Uint8Array(arrayBuffer);
+                
+                // Create a separate copy for PDF.js (as ArrayBuffer)
+                const pdfJsBuffer = arrayBuffer.slice();
+                
+                // Load with PDF.js for text extraction
+                currentPDF = await pdfjsLib.getDocument({
+                    data: pdfJsBuffer,
+                    verbosity: 0 // Reduce console noise
+                }).promise;
+                
+                elements.fileDisplay.classList.add('has-file');
+                elements.fileText.textContent = `${file.name} (${currentPDF.numPages} pages)`;
+                
+                log('PDF loaded successfully', { 
+                    pages: currentPDF.numPages,
+                    originalBytesLength: originalPdfBytes.length,
+                    pdfJsBufferLength: pdfJsBuffer.byteLength
+                });
+                showLoading(false);
+                
+            } catch (error) {
+                log('Error loading PDF', { 
+                    error: error.message || 'Unknown error',
+                    stack: error.stack || 'No stack trace',
+                    name: error.name || 'Unknown error type'
+                });
+                showError('Error loading PDF: ' + (error.message || 'Unknown error occurred'));
+                showLoading(false);
+            }
+        }
+
+        function updateRadioStyles() {
+            document.querySelectorAll('.radio-option').forEach(option => {
+                const radio = option.querySelector('input[type="radio"]');
+                if (radio.checked) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+
+        async function extractPages() {
+            if (!currentPDF || !originalPdfBytes) {
+                showError('Please select a PDF file first.');
+                return;
+            }
+
+            const pattern1 = elements.pattern1Input.value.trim();
+            const pattern2 = elements.pattern2Input.value.trim();
+
+            if (!pattern1) {
+                showError('Please enter at least the first text pattern to search for.');
+                return;
+            }
+
+            const operator = document.querySelector('input[name="operator"]:checked').value;
+            const highlightCheckbox = document.getElementById('highlightText');
+            shouldHighlightText = highlightCheckbox.checked;
+            
+            log('Starting extraction', { pattern1, pattern2, operator, highlightText: shouldHighlightText });
+
+            try {
+                showLoading(true, 'Analyzing PDF pages...');
+                hideMessages();
+                showProgress(true);
+                elements.resultsSection.style.display = 'none';
+
+                extractedPageNumbers = [];
+                extractedPages = [];
+
+                // First pass: find matching pages
+                for (let pageNum = 1; pageNum <= currentPDF.numPages; pageNum++) {
+                    updateProgress((pageNum / currentPDF.numPages) * 100, `Analyzing page ${pageNum} of ${currentPDF.numPages}...`);
+
+                    try {
+                        const page = await currentPDF.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        
+                        log(`Page ${pageNum}`, { textLength: pageText.length, preview: pageText.substring(0, 100) });
+
+                        // Check for pattern matches
+                        const hasPattern1 = pattern1 ? pageText.toLowerCase().includes(pattern1.toLowerCase()) : false;
+                        const hasPattern2 = pattern2 ? pageText.toLowerCase().includes(pattern2.toLowerCase()) : false;
+
+                        let shouldInclude = false;
+                        if (pattern2) {
+                            // Both patterns provided
+                            shouldInclude = operator === 'and' ? (hasPattern1 && hasPattern2) : (hasPattern1 || hasPattern2);
+                        } else {
+                            // Only pattern1 provided
+                            shouldInclude = hasPattern1;
+                        }
+
+                        if (shouldInclude) {
+                            log(`Page ${pageNum} matches criteria`, { hasPattern1, hasPattern2 });
+                            extractedPageNumbers.push(pageNum);
+                            extractedPages.push({
+                                pageNum: pageNum,
+                                text: pageText,
+                                matchedPatterns: { pattern1: hasPattern1, pattern2: hasPattern2 }
+                            });
+                        }
+                    } catch (pageError) {
+                        log(`Error processing page ${pageNum}`, pageError);
+                    }
+                }
+
+                showLoading(false);
+                showProgress(false);
+                
+                log('Extraction complete', { foundPages: extractedPageNumbers });
+
+                if (extractedPages.length > 0) {
+                    displayResults();
+                    
+                    // Always show this important success message
+                    const pagesFoundMessage = `Found ${extractedPages.length} pages with matching patterns: ${extractedPageNumbers.join(', ')}`;
+                    showSuccess(pagesFoundMessage);
+                    
+                    // Log for debug mode
+                    log('Extraction completed successfully', { 
+                        totalPagesFound: extractedPages.length, 
+                        pageNumbers: extractedPageNumbers 
+                    });
+                } else {
+                    showError('No pages found with the specified text patterns.');
+                }
+
+            } catch (error) {
+                log('Error during extraction', error);
+                showError('Error extracting pages: ' + error.message);
+                showLoading(false);
+                showProgress(false);
+            }
+        }
+
+        function displayResults() {
+            log('Displaying results', { pageCount: extractedPages.length });
+            
+            elements.resultsCount.textContent = `Found ${extractedPages.length} pages with matching patterns`;
+            
+            elements.pageList.innerHTML = '';
+            
+            extractedPages.forEach(pageData => {
+                const pageItem = document.createElement('div');
+                pageItem.className = 'page-item';
+                
+                let highlightedText = pageData.text;
+                const pattern1 = elements.pattern1Input.value.trim();
+                const pattern2 = elements.pattern2Input.value.trim();
+                
+                if (pattern1) {
+                    const regex1 = new RegExp(pattern1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    highlightedText = highlightedText.replace(regex1, '<span class="highlight">$&</span>');
+                }
+                
+                if (pattern2) {
+                    const regex2 = new RegExp(pattern2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    highlightedText = highlightedText.replace(regex2, '<span class="highlight">$&</span>');
+                }
+                
+                const preview = highlightedText.length > 300 ? 
+                    highlightedText.substring(0, 300) + '...' : 
+                    highlightedText;
+                
+                pageItem.innerHTML = `
+                    <div class="page-number">Page ${pageData.pageNum}</div>
+                    <div class="page-preview">${preview}</div>
+                `;
+                
+                elements.pageList.appendChild(pageItem);
+            });
+            
+            elements.resultsSection.style.display = 'block';
+        }
+
+        async function downloadExtractedPages() {
+            if (extractedPageNumbers.length === 0) {
+                showError('No pages to download.');
+                return;
+            }
+
+            try {
+                showLoading(true, 'Creating PDF with extracted pages...');
+                hideMessages();
+                log('Starting PDF creation', { pageNumbers: extractedPageNumbers });
+
+                // Ensure we have valid PDF data
+                if (!originalPdfBytes) {
+                    throw new Error('Original PDF data is not available. Please reload the PDF file.');
+                }
+
+                elements.loadingText.textContent = 'Loading source PDF...';
+                
+                // Load source document with detailed error handling
+                let sourceDoc;
+                try {
+                    // Ensure we have valid PDF bytes
+                    if (!originalPdfBytes || originalPdfBytes.length === 0) {
+                        throw new Error('PDF data is empty or corrupted');
+                    }
+                    
+                    log('Attempting to load PDF with pdf-lib', { 
+                        bytesLength: originalPdfBytes.length,
+                        bytesType: originalPdfBytes.constructor.name
+                    });
+                    
+                    // Create a fresh copy for pdf-lib to avoid any buffer issues
+                    const pdfLibBytes = new Uint8Array(originalPdfBytes);
+                    
+                    sourceDoc = await PDFLib.PDFDocument.load(pdfLibBytes, {
+                        ignoreEncryption: true,
+                        parseSpeed: PDFLib.ParseSpeeds.Slow
+                    });
+                    
+                    log('Source PDF loaded successfully with pdf-lib', {
+                        pageCount: sourceDoc.getPageCount(),
+                        title: sourceDoc.getTitle() || 'No title'
+                    });
+                    
+                } catch (loadError) {
+                    log('Failed to load source PDF with pdf-lib', {
+                        error: loadError.message || 'Unknown load error',
+                        stack: loadError.stack || 'No stack trace',
+                        name: loadError.name || 'Unknown error type',
+                        bytesAvailable: !!originalPdfBytes,
+                        bytesLength: originalPdfBytes ? originalPdfBytes.length : 0
+                    });
+                    
+                    // Try alternative loading method
+                    try {
+                        log('Attempting alternative PDF loading method...');
+                        sourceDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
+                        log('Alternative loading method succeeded');
+                    } catch (altError) {
+                        log('Alternative loading method also failed', {
+                            error: altError.message || 'Unknown alternative error',
+                            stack: altError.stack || 'No stack trace'
+                        });
+                        throw new Error(`Failed to load PDF document. Original error: ${loadError.message || 'Unknown error'}. Alternative error: ${altError.message || 'Unknown error'}`);
+                    }
+                }
+
+                elements.loadingText.textContent = 'Creating new PDF document...';
+                
+                // Create new document with error handling
+                let newDoc;
+                try {
+                    newDoc = await PDFLib.PDFDocument.create();
+                    log('New PDF document created');
+                } catch (createError) {
+                    log('Failed to create new PDF', createError);
+                    throw new Error('Failed to create new PDF document: ' + createError.message);
+                }
+                
+                // Set basic metadata
+                try {
+                    newDoc.setTitle(`${originalFileName} - Extracted Pages`);
+                    newDoc.setSubject('Pages extracted by PDF Text Pattern Extractor');
+                    newDoc.setCreator('PDF Text Pattern Extractor');
+                    newDoc.setProducer('PDF-lib');
+                } catch (metaError) {
+                    log('Failed to set metadata', metaError);
+                    // Continue without metadata
+                }
+
+                // Validate page numbers
+                const totalPages = sourceDoc.getPageCount();
+                const validPageNumbers = extractedPageNumbers.filter(pageNum => 
+                    pageNum >= 1 && pageNum <= totalPages
+                );
+
+                if (validPageNumbers.length === 0) {
+                    throw new Error('No valid page numbers found to extract');
+                }
+
+                log(`Extracting ${validPageNumbers.length} valid pages from ${totalPages} total pages`);
+
+                // First, copy the first page as a cover page (unless it's already in the extracted pages)
+                const includeFirstPageAsCover = !validPageNumbers.includes(1);
+                let successfulCopies = 0;
+                
+                if (includeFirstPageAsCover) {
+                    elements.loadingText.textContent = 'Adding first page as cover page...';
+                    
+                    try {
+                        // Copy the first page as cover
+                        const [coverPage] = await newDoc.copyPages(sourceDoc, [0]); // First page (index 0)
+                        newDoc.addPage(coverPage);
+                        successfulCopies++;
+                        log('Successfully added first page as cover page');
+                        
+                        // Add a small visual indicator or text to show this is the source
+                        // Note: Adding text requires more complex PDF operations, so we'll just log it
+                        log('Cover page added to show document source');
+                        
+                    } catch (coverError) {
+                        log('Failed to add cover page:', coverError);
+                        showInfo('Warning: Could not add cover page from original document');
+                    }
+                }
+
+                // Copy the extracted pages with optional highlighting
+                for (let i = 0; i < validPageNumbers.length; i++) {
+                    const pageNumber = validPageNumbers[i];
+                    const pageIndex = pageNumber - 1; // Convert to 0-based index
+                    
+                    const pageLabel = includeFirstPageAsCover && pageNumber === 1 ? 
+                        'original page 1 (already added as cover)' : 
+                        `page ${pageNumber}`;
+                    
+                    elements.loadingText.textContent = `Copying ${pageLabel} (${i + 1} of ${validPageNumbers.length})...`;
+                    
+                    // Skip copying page 1 again if we already added it as cover
+                    if (includeFirstPageAsCover && pageNumber === 1) {
+                        log('Skipping page 1 copy since it was already added as cover');
+                        continue;
+                    }
+                    
+                    try {
+                        // Copy single page with validation
+                        const pages = await newDoc.copyPages(sourceDoc, [pageIndex]);
+                        
+                        if (pages && pages.length > 0) {
+                            const copiedPage = pages[0];
+                            
+                            // Add highlighting if requested
+                            if (shouldHighlightText) {
+                                await addHighlightingToPage(newDoc, copiedPage, pageNumber);
+                            }
+                            
+                            // Add the copied page to new document
+                            newDoc.addPage(copiedPage);
+                            successfulCopies++;
+                            log(`Successfully copied page ${pageNumber}${shouldHighlightText ? ' with highlighting' : ''}`);
+                        } else {
+                            log(`No page returned for page ${pageNumber}`);
+                        }
+                        
+                        // Small delay to prevent overwhelming the browser
+                        if (i % 3 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                        }
+                        
+                    } catch (pageError) {
+                        log(`Failed to copy page ${pageNumber}:`, pageError);
+                        // Continue with other pages instead of failing completely
+                        showInfo(`Warning: Could not copy page ${pageNumber}. Continuing with other pages...`);
+                    }
+                }
+
+                // Check if we have any pages
+                const finalPageCount = newDoc.getPageCount();
+                if (finalPageCount === 0 || successfulCopies === 0) {
+                    throw new Error(`No pages were successfully copied. Attempted to copy pages: ${validPageNumbers.join(', ')}`);
+                }
+
+                log(`PDF creation complete with ${finalPageCount} pages (${successfulCopies} successful copies)`);
+                elements.loadingText.textContent = 'Generating PDF file...';
+
+                // Generate PDF bytes with error handling
+                let pdfBytes;
+                try {
+                    pdfBytes = await newDoc.save({
+                        useObjectStreams: false,
+                        addDefaultPage: false,
+                        objectsPerTick: 50
+                    });
+                    log('PDF bytes generated successfully', { size: pdfBytes.length });
+                } catch (saveError) {
+                    log('Failed to generate PDF bytes', saveError);
+                    throw new Error('Failed to generate PDF file: ' + saveError.message);
+                }
+
+                // Create filename with the specified format: Original File Name_Text Pattern_YYMMDD_HHMMSS.pdf
+                const now = new Date();
+                const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+                
+                const dateTimeString = `${year}${month}${day}_${hours}${minutes}${seconds}`;
+                
+                // Get the search patterns for filename
+                const pattern1 = elements.pattern1Input.value.trim();
+                const pattern2 = elements.pattern2Input.value.trim();
+                
+                // Create pattern string for filename (clean it for file system compatibility)
+                let patternString = pattern1.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+                if (pattern2) {
+                    const operator = document.querySelector('input[name="operator"]:checked').value;
+                    const cleanPattern2 = pattern2.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+                    patternString += `_${operator.toUpperCase()}_${cleanPattern2}`;
+                }
+                
+                // Limit pattern string length for filename compatibility
+                if (patternString.length > 50) {
+                    patternString = patternString.substring(0, 50);
+                }
+                
+                const outputFileName = `${originalFileName}_${patternString}_${dateTimeString}.pdf`;
+
+                elements.loadingText.textContent = 'Preparing download...';
+
+                log('Generated filename', { 
+                    originalFileName, 
+                    patternString, 
+                    dateTimeString, 
+                    fullFileName: outputFileName 
+                });
+
+                // Create blob with validation
+                let blob;
+                try {
+                    blob = new Blob([pdfBytes], { 
+                        type: 'application/pdf'
+                    });
+
+                    // Verify blob was created properly
+                    if (blob.size === 0) {
+                        throw new Error('Generated PDF file is empty');
+                    }
+
+                    log('Blob created successfully', { size: blob.size });
+                } catch (blobError) {
+                    log('Failed to create blob', blobError);
+                    throw new Error('Failed to create download file: ' + blobError.message);
+                }
+
+                // Create download URL
+                let downloadUrl;
+                try {
+                    downloadUrl = URL.createObjectURL(blob);
+                    log('Download URL created');
+                } catch (urlError) {
+                    log('Failed to create download URL', urlError);
+                    throw new Error('Failed to create download URL: ' + urlError.message);
+                }
+
+                // Create and trigger download or save dialog
+                const chooseSaveLocationCheckbox = document.getElementById('chooseSaveLocation');
+                const shouldChooseLocation = chooseSaveLocationCheckbox && chooseSaveLocationCheckbox.checked;
+                
+                if (shouldChooseLocation && 'showSaveFilePicker' in window) {
+                    // Use File System Access API for save location choice
+                    try {
+                        elements.loadingText.textContent = 'Choose save location...';
+                        
+                        const fileHandle = await window.showSaveFilePicker({
+                            suggestedName: outputFileName,
+                            types: [
+                                {
+                                    description: 'PDF files',
+                                    accept: {
+                                        'application/pdf': ['.pdf'],
+                                    },
+                                },
+                            ],
+                        });
+                        
+                        elements.loadingText.textContent = 'Saving PDF to chosen location...';
+                        
+                        // Write the file to the chosen location
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(pdfBytes);
+                        await writable.close();
+                        
+                        log('PDF saved to user-chosen location via File System Access API');
+                        
+                        // Show success message with location info
+                        showSuccess(`PDF successfully saved to your chosen location as "${outputFileName}" with ${finalPageCount} pages${includeFirstPageAsCover ? ' (including first page as cover)' : ''} from original pages ${includeFirstPageAsCover ? '[1 (cover)], ' : ''}${validPageNumbers.join(', ')}.`);
+                        
+                    } catch (saveError) {
+                        if (saveError.name === 'AbortError') {
+                            // User cancelled the save dialog
+                            showInfo('Save cancelled by user. You can try again or uncheck "Choose save location" to use the Downloads folder.');
+                            log('User cancelled save dialog');
+                        } else {
+                            // Fall back to regular download if File System Access fails
+                            log('File System Access API failed, falling back to download:', saveError);
+                            showInfo('Could not open save dialog. Falling back to Downloads folder...');
+                            await performRegularDownload();
+                        }
+                    }
+                } else {
+                    // Regular download to Downloads folder
+                    await performRegularDownload();
+                }
+                
+                // Function to handle regular download
+                async function performRegularDownload() {
+                    try {
+                        elements.loadingText.textContent = 'Preparing download...';
+                        
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = downloadUrl;
+                        downloadLink.download = outputFileName;
+                        downloadLink.style.display = 'none';
+                        
+                        // Force browser to treat as download
+                        downloadLink.setAttribute('download', outputFileName);
+                        downloadLink.type = 'application/pdf';
+
+                        // Add to DOM and trigger download
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+
+                        log('Download triggered successfully to Downloads folder');
+                        
+                        // Show success message for regular download
+                        const finalSuccessMessage = `PDF successfully created and downloaded as "${outputFileName}" with ${finalPageCount} pages${includeFirstPageAsCover ? ' (including first page as cover)' : ''} from original pages ${includeFirstPageAsCover ? '[1 (cover)], ' : ''}${validPageNumbers.join(', ')}. File saved to your Downloads folder.`;
+                        showSuccess(finalSuccessMessage);
+                        
+                    } catch (downloadError) {
+                        log('Failed to trigger download', downloadError);
+                        throw new Error('Failed to start download: ' + downloadError.message);
+                    }
+                }
+
+                // Open the PDF in a new tab/window
+                elements.loadingText.textContent = 'Opening PDF...';
+                
+                try {
+                    // Create a new window/tab to open the PDF
+                    const pdfWindow = window.open(downloadUrl, '_blank');
+                    
+                    if (pdfWindow) {
+                        log('PDF opened in new tab');
+                        // Set a title for the new window
+                        setTimeout(() => {
+                            try {
+                                pdfWindow.document.title = outputFileName;
+                            } catch (e) {
+                                // Ignore cross-origin errors
+                            }
+                        }, 1000);
+                    } else {
+                        // Popup blocked or failed to open
+                        log('Failed to open PDF in new tab - popup may be blocked');
+                        showInfo(`PDF downloaded as "${outputFileName}". If you don't see it open automatically, check your browser's popup blocker settings.`);
+                    }
+                } catch (openError) {
+                    log('Error opening PDF', openError);
+                    showInfo(`PDF downloaded successfully as "${outputFileName}". Could not open automatically - please open the downloaded file manually.`);
+                }
+
+                // Clean up after a longer delay to ensure PDF opens properly
+                setTimeout(() => {
+                    try {
+                        const downloadLinks = document.querySelectorAll('a[download]');
+                        downloadLinks.forEach(link => {
+                            if (document.body.contains(link)) {
+                                document.body.removeChild(link);
+                            }
+                        });
+                    } catch (cleanupError) {
+                        log('Error during cleanup', cleanupError);
+                    }
+                    
+                    // Don't revoke URL immediately to allow PDF to load in new tab
+                    setTimeout(() => {
+                        try {
+                            URL.revokeObjectURL(downloadUrl);
+                        } catch (revokeError) {
+                            log('Error revoking URL', revokeError);
+                        }
+                    }, 5000);
+                }, 2000);
+
+                showLoading(false);
+                
+                // Log detailed info only in debug mode
+                log('Download completed successfully', {
+                    filename: outputFileName,
+                    originalPages: validPageNumbers,
+                    finalPageCount: finalPageCount,
+                    successfulCopies: successfulCopies,
+                    includedCoverPage: includeFirstPageAsCover,
+                    savedWithFileSystemAccess: shouldChooseLocation && 'showSaveFilePicker' in window
+                });
+
+            } catch (error) {
+                log('PDF creation failed:', {
+                    error: error.message || 'Unknown error',
+                    stack: error.stack || 'No stack trace',
+                    name: error.name || 'Unknown error type',
+                    originalPdfBytesAvailable: !!originalPdfBytes,
+                    originalPdfBytesLength: originalPdfBytes ? originalPdfBytes.length : 0,
+                    extractedPageNumbers: extractedPageNumbers
+                });
+                showLoading(false);
+                
+                let errorMessage = 'PDF creation failed: ';
+                
+                // Provide helpful error messages based on error type
+                if (error.message) {
+                    errorMessage += error.message;
+                } else if (typeof error === 'object' && error !== null) {
+                    errorMessage += 'Unknown error occurred. ';
+                    if (error.name) errorMessage += `Error type: ${error.name}. `;
+                    errorMessage += 'Check browser console for details.';
+                } else {
+                    errorMessage += String(error) || 'Completely unknown error';
+                }
+                
+                // Add helpful suggestions
+                if (!originalPdfBytes || originalPdfBytes.length === 0) {
+                    errorMessage += ' The PDF file data is missing. Please reload the PDF file and try again.';
+                } else if (errorMessage.includes('load') || errorMessage.includes('parse')) {
+                    errorMessage += ' The PDF file may be corrupted or encrypted. Try with a different PDF file.';
+                } else if (errorMessage.includes('copyPages') || errorMessage.includes('page')) {
+                    errorMessage += ' There may be an issue with the selected pages. Try selecting different pages.';
+                } else if (errorMessage.includes('empty') || errorMessage.includes('size')) {
+                    errorMessage += ' The generated file appears to be empty. Please try again.';
+                } else {
+                    errorMessage += ' Please try reloading the PDF file and extracting again.';
+                }
+                
+                showError(errorMessage);
+            }
+        }
+
+        function showLoading(show, message = 'Processing...') {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            if (shouldShowDebug) {
+                elements.loadingSpinner.style.display = show ? 'block' : 'none';
+                elements.loadingText.textContent = message;
+            } else {
+                // Only show basic loading for non-debug mode
+                if (show && (message.includes('Creating PDF') || message.includes('Loading PDF') || message.includes('Analyzing'))) {
+                    elements.loadingSpinner.style.display = 'block';
+                    elements.loadingText.textContent = message;
+                } else if (!show) {
+                    elements.loadingSpinner.style.display = 'none';
+                }
+            }
+            
+            elements.extractBtn.disabled = show;
+            elements.downloadBtn.disabled = show;
+        }
+
+        function showProgress(show) {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            // Only show progress bar in debug mode
+            if (shouldShowDebug) {
+                elements.progressSection.style.display = show ? 'block' : 'none';
+            } else {
+                elements.progressSection.style.display = 'none';
+            }
+            
+            if (!show) {
+                elements.progressFill.style.width = '0%';
+            }
+        }
+
+        function updateProgress(percent, text = '') {
+            // Check if debug info should be shown
+            const showDebugCheckbox = document.getElementById('showDebugInfo');
+            const shouldShowDebug = showDebugCheckbox && showDebugCheckbox.checked;
+            
+            // Only update progress in debug mode
+            if (shouldShowDebug) {
+                elements.progressFill.style.width = percent + '%';
+                elements.progressText.textContent = text;
+            }
+        }
+
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorMessage.style.display = 'block';
+            elements.successMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            elements.successMessage.textContent = message;
+            elements.successMessage.style.display = 'block';
+            elements.errorMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        function showInfo(message) {
+            elements.infoMessage.textContent = message;
+            elements.infoMessage.style.display = 'block';
+            elements.errorMessage.style.display = 'none';
+            elements.successMessage.style.display = 'none';
+        }
+
+        function hideMessages() {
+            elements.errorMessage.style.display = 'none';
+            elements.successMessage.style.display = 'none';
+            elements.infoMessage.style.display = 'none';
+        }
+
+        // Initialize
+        updateRadioStyles();
+        log('PDF Text Pattern Extractor initialized');
+
+        // Function to add highlighting to a page
+        async function addHighlightingToPage(pdfDoc, page, pageNumber) {
+            try {
+                const pattern1 = elements.pattern1Input.value.trim();
+                const pattern2 = elements.pattern2Input.value.trim();
+                
+                if (!pattern1) return;
+                
+                log(`Adding highlighting to page ${pageNumber}`);
+                
+                // Get the original page data to find text positions
+                const originalPage = await currentPDF.getPage(pageNumber);
+                const textContent = await originalPage.getTextContent();
+                const viewport = originalPage.getViewport({ scale: 1.0 });
+                
+                // Get page dimensions from pdf-lib page
+                const { width: pageWidth, height: pageHeight } = page.getSize();
+                
+                // Create highlighting rectangles for matched text
+                const highlights = [];
+                
+                // Build text segments with proper positioning
+                const textSegments = [];
+                textContent.items.forEach((item, index) => {
+                    if (item.str && item.str.trim() && item.transform) {
+                        const transform = item.transform;
+                        // Extract position and scale from transformation matrix
+                        const scaleX = Math.sqrt(transform[0] * transform[0] + transform[1] * transform[1]);
+                        const scaleY = Math.sqrt(transform[2] * transform[2] + transform[3] * transform[3]);
+                        const x = transform[4];
+                        const y = transform[5];
+                        
+                        textSegments.push({
+                            text: item.str,
+                            x: x,
+                            y: y,
+                            width: item.width || (item.str.length * scaleX * 0.6), // Better width estimation
+                            height: item.height || (scaleY * 1.2), // Better height estimation
+                            fontSize: scaleY,
+                            index: index
+                        });
+                    }
+                });
+                
+                log(`Found ${textSegments.length} text segments on page ${pageNumber}`);
+                
+                // Function to check if text contains pattern (case insensitive)
+                function containsPattern(text, pattern) {
+                    return text.toLowerCase().includes(pattern.toLowerCase());
+                }
+                
+                // Find matching text segments
+                textSegments.forEach(segment => {
+                    const pattern1Lower = pattern1.toLowerCase();
+                    const pattern2Lower = pattern2 ? pattern2.toLowerCase() : '';
+                    const segmentTextLower = segment.text.toLowerCase();
+                    
+                    let shouldHighlight = false;
+                    let matchedPattern = '';
+                    
+                    // Check for exact pattern matches within this segment
+                    if (containsPattern(segment.text, pattern1)) {
+                        shouldHighlight = true;
+                        matchedPattern = pattern1;
+                    }
+                    
+                    if (pattern2 && containsPattern(segment.text, pattern2)) {
+                        shouldHighlight = true;
+                        matchedPattern = pattern2;
+                    }
+                    
+                    if (shouldHighlight) {
+                        // Convert PDF coordinates to pdf-lib coordinates
+                        // PDF.js uses bottom-left origin, pdf-lib also uses bottom-left origin
+                        // but we need to account for the viewport scaling
+                        
+                        const pdfX = segment.x;
+                        const pdfY = segment.y;
+                        
+                        // Calculate proper dimensions
+                        const rectWidth = segment.width;
+                        const rectHeight = segment.height;
+                        
+                        // Adjust Y coordinate - PDF.js Y is from bottom, pdf-lib Y is also from bottom
+                        // but we need to account for text baseline vs rectangle positioning
+                        const adjustedY = pdfY - (rectHeight * 0.2); // Slight adjustment for text baseline
+                        
+                        highlights.push({
+                            x: pdfX,
+                            y: adjustedY,
+                            width: rectWidth,
+                            height: rectHeight,
+                            pattern: matchedPattern,
+                            originalText: segment.text
+                        });
+                        
+                        log(`Found match for "${matchedPattern}" in text "${segment.text}" at (${pdfX}, ${adjustedY})`);
+                    }
+                });
+                
+                // Also check for patterns that span multiple segments
+                // Combine adjacent text segments to check for patterns across segments
+                for (let i = 0; i < textSegments.length - 1; i++) {
+                    const currentSegment = textSegments[i];
+                    const nextSegment = textSegments[i + 1];
+                    
+                    // Check if segments are on the same line (similar Y coordinates)
+                    const yDiff = Math.abs(currentSegment.y - nextSegment.y);
+                    const avgHeight = (currentSegment.height + nextSegment.height) / 2;
+                    
+                    if (yDiff < avgHeight * 0.5) { // Same line
+                        const combinedText = currentSegment.text + ' ' + nextSegment.text;
+                        
+                        if (containsPattern(combinedText, pattern1) || (pattern2 && containsPattern(combinedText, pattern2))) {
+                            let matchedPattern = '';
+                            if (containsPattern(combinedText, pattern1)) matchedPattern = pattern1;
+                            else if (pattern2 && containsPattern(combinedText, pattern2)) matchedPattern = pattern2;
+                            
+                            // Create a highlight that spans both segments
+                            const startX = Math.min(currentSegment.x, nextSegment.x);
+                            const endX = Math.max(currentSegment.x + currentSegment.width, nextSegment.x + nextSegment.width);
+                            const avgY = (currentSegment.y + nextSegment.y) / 2;
+                            const maxHeight = Math.max(currentSegment.height, nextSegment.height);
+                            
+                            highlights.push({
+                                x: startX,
+                                y: avgY - (maxHeight * 0.2),
+                                width: endX - startX,
+                                height: maxHeight,
+                                pattern: matchedPattern,
+                                originalText: combinedText
+                            });
+                            
+                            log(`Found spanning match for "${matchedPattern}" in combined text "${combinedText}"`);
+                        }
+                    }
+                }
+                
+                // Remove duplicate highlights (same position and size)
+                const uniqueHighlights = [];
+                highlights.forEach(highlight => {
+                    const isDuplicate = uniqueHighlights.some(existing => 
+                        Math.abs(existing.x - highlight.x) < 2 &&
+                        Math.abs(existing.y - highlight.y) < 2 &&
+                        Math.abs(existing.width - highlight.width) < 5
+                    );
+                    
+                    if (!isDuplicate) {
+                        uniqueHighlights.push(highlight);
+                    }
+                });
+                
+                log(`Creating ${uniqueHighlights.length} unique highlights on page ${pageNumber}`);
+                
+                // Add yellow highlight rectangles to the page
+                for (const highlight of uniqueHighlights) {
+                    try {
+                        // Ensure coordinates are valid
+                        if (highlight.x >= 0 && highlight.y >= 0 && 
+                            highlight.width > 0 && highlight.height > 0 &&
+                            highlight.x < pageWidth && highlight.y < pageHeight) {
+                            
+                            // Create a yellow semi-transparent rectangle
+                            page.drawRectangle({
+                                x: highlight.x,
+                                y: highlight.y,
+                                width: Math.min(highlight.width, pageWidth - highlight.x),
+                                height: Math.min(highlight.height, pageHeight - highlight.y),
+                                color: PDFLib.rgb(1, 1, 0), // Yellow color
+                                opacity: 0.3
+                            });
+                            
+                            log(`Added highlight for "${highlight.pattern}" at (${highlight.x.toFixed(1)}, ${highlight.y.toFixed(1)}) size ${highlight.width.toFixed(1)}x${highlight.height.toFixed(1)}`);
+                        } else {
+                            log(`Skipped invalid highlight coordinates: (${highlight.x}, ${highlight.y}) size ${highlight.width}x${highlight.height}`);
+                        }
+                    } catch (drawError) {
+                        log(`Failed to draw highlight rectangle:`, drawError);
+                    }
+                }
+                
+                log(`Successfully added ${uniqueHighlights.length} highlights to page ${pageNumber}`);
+                
+            } catch (highlightError) {
+                log(`Error adding highlighting to page ${pageNumber}:`, highlightError);
+                // Don't throw error, just continue without highlighting
+            }
+        }
+    </script>
+</body>
+</html>
