@@ -415,6 +415,21 @@
             100% { transform: rotate(360deg); }
         }
 
+        @keyframes pulse {
+            0% { 
+                transform: translateY(-2px) scale(1); 
+                box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+            }
+            50% { 
+                transform: translateY(-4px) scale(1.02); 
+                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6);
+            }
+            100% { 
+                transform: translateY(-2px) scale(1); 
+                box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+            }
+        }
+
         .debug-info {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -1133,6 +1148,11 @@
                     const pagesFoundMessage = `Found ${extractedPages.length} pages with matching patterns: ${extractedPageNumbers.join(', ')}`;
                     showSuccess(pagesFoundMessage);
                     
+                    // Scroll down to make the Download PDF button visible
+                    setTimeout(() => {
+                        scrollToResults();
+                    }, 500); // Small delay to allow results to render
+                    
                     // Log for debug mode
                     log('Extraction completed successfully', { 
                         totalPagesFound: extractedPages.length, 
@@ -1718,6 +1738,56 @@
             elements.errorMessage.style.display = 'none';
             elements.successMessage.style.display = 'none';
             elements.infoMessage.style.display = 'none';
+        }
+
+        function scrollToResults() {
+            try {
+                // First try to scroll to the download button specifically
+                const downloadBtn = elements.downloadBtn;
+                if (downloadBtn && downloadBtn.offsetParent !== null) {
+                    // Calculate position to center the download button in viewport
+                    const buttonRect = downloadBtn.getBoundingClientRect();
+                    const viewportHeight = window.innerHeight;
+                    const scrollOffset = window.pageYOffset + buttonRect.top - (viewportHeight * 0.3);
+                    
+                    window.scrollTo({
+                        top: Math.max(0, scrollOffset),
+                        behavior: 'smooth'
+                    });
+                    
+                    // Add a subtle highlight animation to draw attention to the download button
+                    setTimeout(() => {
+                        downloadBtn.style.animation = 'pulse 1.5s ease-in-out 2';
+                        setTimeout(() => {
+                            downloadBtn.style.animation = '';
+                        }, 3000);
+                    }, 800);
+                    
+                    log('Scrolled to download button');
+                } else {
+                    // Fallback: scroll to results section
+                    const resultsSection = elements.resultsSection;
+                    if (resultsSection && resultsSection.offsetParent !== null) {
+                        resultsSection.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                            inline: 'nearest'
+                        });
+                        log('Scrolled to results section');
+                    }
+                }
+            } catch (scrollError) {
+                log('Error during scroll:', scrollError);
+                // Silent fallback - try basic scroll
+                try {
+                    window.scrollBy({
+                        top: 300,
+                        behavior: 'smooth'
+                    });
+                } catch (e) {
+                    // If all else fails, do nothing
+                }
+            }
         }
 
         // Function to add highlighting to a page
