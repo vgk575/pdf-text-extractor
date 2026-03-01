@@ -2,7 +2,8 @@
 
 Find and extract PDF pages containing one or two keywords or text patterns. Save matching pages to a new PDF privately in your browser, with original layout preserved.
 
-![Demo of Extract PDF Pages by Keywords](demo.gif)
+![Watch demo](Screenshot.png)](demo.mov)
+
 
 ## Live tool
 
